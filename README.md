@@ -1,2 +1,2 @@
 # meptrack
-Catching the MEPs in the EMG-signal recording produced by NVX amplifier
+Catching the motor evoked potentials (MEPs) in the electromyography (EMG) recording produced by NVX amplifier
