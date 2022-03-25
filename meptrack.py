@@ -5,82 +5,96 @@ Created on Wed Feb 16 21:15:12 2022
 @author: Pavel Novikov
 """
 
-import pyautogui as pag
-import numpy as np
-
 from pylsl import StreamInlet, resolve_stream
+import numpy as np
+import pyautogui as pag
+import keyboard as kb
 
 
-print("looking for an EEG stream...")
-#streams = resolve_stream('type', 'EEG')
+# Settings
+TRIG_CH_NUM = 0 # number of trigger channel 
+EMG_CH_NUM = 1 # number of trigger channel 
+TRIG_CH_THRESHOLD = 200 # in mcV (microvolt)
+SCR_CAPTURE_DELAY = 800 # in ms (millisecond)
+MIN_TIME_BETWEEN_STIMULI = 1000 # in ms (millisecond)
+TRIAL_START_BEF_TRIG = 400 # in ms, start of trial recording before trigger
+TRIAL_END_AFT_TRIG = 600 # in ms, end of trial recording after trigger
+
+# Path to store screenshots and data
+PATH = r'c:\p\pscr'
+
+# Subject name/code
+SUBJNAME = 'Pavel'
+
+# Advanced settings
+MAX_NONACTIVE_TIME = 600 # in seconds
+
+
+# START
+print('Looking for an EMG stream ...')
 streams = resolve_stream()
+print('   ... okay.')
 
-print("...qqq...")
+print('Block starts for subject', SUBJNAME, '...')
 
 for info in streams:
     print(info.type())
 
 print("...end.")
 
-# create a new inlet to read from the stream
-inlet = StreamInlet(streams[0])
+# create an inlet to read from the stream
+inlet_trig = StreamInlet(streams[TRIG_CH_NUM])
+#inlet_emg = StreamInlet(streams[TRIG_CH_NUM])
 
 
 s = 0
 s_on = False
-smax = 1000
-spscr = 800
-sample_lim = 2.0e-4
-for i in range(30000):
-    #print('i =', i)
-#while True:
-    # get a new sample (you can also omit the timestamp part if you're not
-    # interested in it)
-    sample, timestamp = inlet.pull_sample()
+smax = MIN_TIME_BETWEEN_STIMULI
+spscr = SCR_CAPTURE_DELAY
+sample_lim = 1.0e-6*TRIG_CH_THRESHOLD
+i = 0
+mep_data = np.zeros((smax), dtype = np.float32)
+emg_rec = np.zeros((MAX_NONACTIVE_TIME*1000), dtype=np.float32)
+
+irec = 0
+irec_trig = -1
+while True:
+    
+    sample, timestamp = inlet_trig.pull_sample()
+    
+    emg_rec[irec] = sample[0]
+    
     if np.abs(sample[0]) >= sample_lim and (not s_on):
         s_on = True
         s = 0
-        print(timestamp, sample)        
+        irec_trig = irec
+        print(timestamp, sample)
 
     elif s_on and s < smax :
         if s == spscr:
             pscr = pag.screenshot()
-            fname = r'c:\p\pscr\mep_' + str(i)  + r'.png'
+            fname = PATH + r'\mep_' + str(i)  + r'.png'
             pscr.save(fname)
-        s += 1        
+            
+            mep_data[:] = emg_rec[irec]
+        
+            
+        s += 1       
+        
     elif s_on and s >= smax and (np.abs(sample[0]) < sample_lim):
         s_on = False
         s = 0
+        
     else:
         pass
+    
+    if kb.is_pressed('q'):
+        print('... terminated by user.')
+        break
+    
+    i += 1
+    irec +=1
         
-        
-    #print(timestamp, sample)
-
-#print("looking for an EEG stream...")
-#streams = resolve_stream('type', 'EEG')
-
-#pscr = pag.screenshot()
-#pscr.save(r'c:\p\pscr\pscr_01.png')
-
-
-# def main():
-#     # first resolve an EEG stream on the lab network
-#     print("looking for an EEG stream...")
-#     streams = resolve_stream('type', 'EEG')
-
-#     # create a new inlet to read from the stream
-#     inlet = StreamInlet(streams[0])
-
-#     while True:
-#         # get a new sample (you can also omit the timestamp part if you're not
-#         # interested in it)
-#         sample, timestamp = inlet.pull_sample()
-#         print(timestamp, sample)
-
-
-# if __name__ == '__main__':
-#     main()
 
 
 
